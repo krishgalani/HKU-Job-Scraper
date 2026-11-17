@@ -1,0 +1,13 @@
+[project]
+name = "scrape-hkujobs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "crawl4ai>=0.9.5",
+    "litellm>=1.109.1",
+    "pydantic>=2.14.3",
+    "python-dotenv>=1.2.4",
+    "questionary>=2.1.1",
+]

@@ -1,0 +1,55 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# uv
+.uv/
+uv.lock.bak
+
+# Secrets / environment files
+.env
+.env.*
+# .env.example is safe to commit as a template
+!.env.example
+*.pem
+*.key
+
+# Generated scrape output & debug artifacts
+job_descriptions.json
+search_summary.json
+debug_*.md
+*.crawl4ai*
+.crawl4ai_cache/
+
+# Tooling (local AI-assistant config)
+.clinerules/
+.clineignore
+.claude/
+.cursor/
+.vscode/
+.idea/
+evaluation.py
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Logs & temp files
+*.log
+.logs/
+*.tmp
+.tmp/
+
+#Generated outputs
+*.json
+*.txt
+
