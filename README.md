@@ -4,8 +4,8 @@
 
 A two-stage, LLM-powered web scraper for the [HKU Jobs Portal](https://jobs.hku.hk/) built with **Crawl4AI**, **Playwright**, **LiteLLM**, and **Pydantic**.
 
-- **Stage 1:** Renders a filtered HKU job search URL and extracts summary listings and normalized job links into `search_summary.json`.
-- **Stage 2:** Crawls each job detail page sequentially and extracts structured job data into `job_descriptions.json`.
+- **Stage 1:** Automatically detects total result pages, paginates through your filtered HKU job search URL in a single browser session, and extracts deduplicated listing summaries into `search_summary.json`.
+- **Stage 2:** Crawls each job detail page sequentially, extracts the work type and full description, merges them with the Stage 1 metadata, and saves the combined records to `job_descriptions.json` (saving partial results on `Ctrl+C`).
 
 ---
 
@@ -41,28 +41,32 @@ A two-stage, LLM-powered web scraper for the [HKU Jobs Portal](https://jobs.hku.
 ### Interactive Mode (Recommended)
 Run the scraper and follow the prompts to enter your HKU search URL and select your LLM provider/model:
 ```bash
-uv run python3 main.py
+uv run main.py
 ```
 
 ### Run Specific Stages
 - **Scrape search listings only (Stage 1):**
   ```bash
-  uv run python3 main.py --stage 1
+  uv run main.py --stage 1
+  ```
+- **Test Stage 1 pagination on the first 2 pages:**
+  ```bash
+  uv run main.py --stage 1 --max-pages 2
   ```
 - **Scrape job details from an existing `search_summary.json` (Stage 2):**
   ```bash
-  uv run python3 main.py --stage 2
+  uv run main.py --stage 2
   ```
 - **Test Stage 2 on a limited number of jobs:**
   ```bash
-  uv run python3 main.py --stage 2 --limit 3
+  uv run main.py --stage 2 --limit 3
   ```
 
 ### Non-Interactive / CLI Flag Mode
 Pass `--url` and `--model` directly to bypass interactive prompts (refer to the [LiteLLM Providers Documentation](https://docs.litellm.ai/docs/providers) for valid model identifiers):
 ```bash
-uv run python3 main.py \
-  --url "https://jobs.hku.hk/cw/en/filter/?search-keyword=&brand=faculty%20of%20dentistry" \
+uv run main.py \
+  --url "https://jobs.hku.hk/jobs/search?page=1&dropdown_field_1_uids%5B%5D=9841a70f496f8ea53b678b0976c80486" \
   --model "deepseek/deepseek-flash"
 ```
 
@@ -73,14 +77,16 @@ uv run python3 main.py \
 | Flag | Description | Default |
 | :--- | :--- | :--- |
 | `--stage` | Pipeline stage to run (`1`, `2`, or `all`) | `all` |
+| `--max-pages` | Maximum number of search result pages to scrape in Stage 1 | `None` (all) |
+| `--page-param` | Query parameter name used for pagination URLs | `page` |
 | `--limit` | Maximum number of job detail pages to scrape in Stage 2 | `None` (all) |
 | `--url` | HKU filtered search results URL (skips interactive URL prompt) | `None` |
 | `--model` | LiteLLM `provider/model` ID, e.g. `deepseek/deepseek-flash` ([supported models](https://docs.litellm.ai/docs/providers)) | `None` |
-| `--debug` | Save rendered page Markdown to `debug_stage1.md` and `debug_stage2.md` | `False` |
+| `--debug` | Save rendered Markdown to `debug_stage0.md`, `debug_stage1_p*.md`, and `debug_stage2.md` | `False` |
 
 ---
 
 ## Output Files
 
-- **`search_summary.json`** — Extracted table rows (`ref`, `posting_title`, `department`, `closing_date`, `url`).
-- **`job_descriptions.json`** — Full structured postings (`title`, `ref`, `work_type`, `department`, `categories`, `description`, `advertised_time`, `applications_close_time`, `source_url`).
+- **`search_summary.json`** — Deduplicated search listing rows (`job_no`, `posting_title`, `department`, `applications_close_time`, `url`). Note: `applications_close_time` may be `null` for postings without a listed deadline.
+- **`job_descriptions.json`** — Merged full postings combining Stage 1 metadata with Stage 2 details (`job_no`, `posting_title`, `department`, `applications_close_time`, `url`, `work_type`, `description`).

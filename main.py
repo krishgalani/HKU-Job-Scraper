@@ -18,7 +18,7 @@ SUPPORTED_PROVIDERS = {
     "DeepSeek (deepseek/...)": {
         "prefix": "deepseek",
         "env_var": "DEEPSEEK_API_KEY",
-        "example": "deepseek-flash",
+        "example": "deepseek-chat",
     },
     "OpenAI (openai/...)": {
         "prefix": "openai",
@@ -47,6 +47,8 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Two-stage HKU job scraper")
     parser.add_argument("--stage", choices=["1", "2", "all"], default="all", help="Pipeline stage(s) to run")
+    parser.add_argument("--max-pages", type=int, default=None, help="Max search result pages to scrape in Stage 1")
+    parser.add_argument("--page-param", type=str, default="page", help="Pagination query parameter name (default: page)")
     parser.add_argument("--limit", type=int, default=None, help="Max job detail pages to scrape in Stage 2")
     parser.add_argument("--url", type=str, default=None, help="HKU search URL (skips URL prompt)")
     parser.add_argument("--model", type=str, default=None, help="Provider/model ID (skips model prompt)")
@@ -56,21 +58,22 @@ def parse_args() -> argparse.Namespace:
 
 def prompt_user_config(args: argparse.Namespace) -> tuple[str | None, LLMConfig]:
     """Resolve the target search URL and LLM configuration via CLI flags or interactive prompts."""
-    search_url = args.url
+    search_url = args.url.strip() if args.url else None
     if args.stage in ("1", "all") and not search_url:
         search_url = questionary.text(
             "Enter the HKU search results URL (or 'q' to quit):",
             validate=lambda text: (
                 True
-                if text.strip().lower() in QUIT_KEYWORDS or text.startswith("http")
+                if text.strip().lower() in QUIT_KEYWORDS or text.strip().startswith("http")
                 else "Please enter a valid http/https URL (or 'q' to quit)"
             ),
         ).ask()
         if not search_url or search_url.strip().lower() in QUIT_KEYWORDS:
             raise SystemExit("Exited by user.")
+        search_url = search_url.strip()
 
     if args.model:
-        provider_string = args.model
+        provider_string = args.model.strip()
         prefix = provider_string.split("/")[0]
         env_var = next(
             (cfg["env_var"] for cfg in SUPPORTED_PROVIDERS.values() if cfg["prefix"] == prefix),
@@ -117,7 +120,13 @@ async def run_pipeline(args: argparse.Namespace, search_url: str | None, llm_cfg
     if args.stage in ("1", "all"):
         if not search_url:
             raise ValueError("Search URL is required for Stage 1.")
-        await stage_1_scrape_listings(search_url=search_url, llm_cfg=llm_cfg, debug=args.debug)
+        await stage_1_scrape_listings(
+            search_url=search_url,
+            llm_cfg=llm_cfg,
+            page_param=args.page_param,
+            max_pages=args.max_pages,
+            debug=args.debug,
+        )
     if args.stage in ("2", "all"):
         await stage_2_scrape_details(llm_cfg=llm_cfg, limit=args.limit, debug=args.debug)
 
